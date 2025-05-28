@@ -41,7 +41,7 @@ ws.onmessage = (e) => {
         drawCandles([...gameState.candles, gameState.currentCandle]);
         updateStats();
         updateLeaderboard();
-        updateStatsEncadre(gameState.players);
+        updateStatsEncadre(Object.values(gameState.players));
     }
 };
 
