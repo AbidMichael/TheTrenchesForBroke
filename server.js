@@ -21,7 +21,7 @@ const SELL_PERCENTAGES = [0.1, 0.25, 0.5, 0.75, 0.9, 1];
 let players = {};
 let candles = [];
 let currentCandle = createCandle();
-let totalTokensInCirculation = 1;
+let totalTokensInCirculation = 10;
 
 let simulationStarted = false;
 let fakeClients = [];
@@ -60,7 +60,7 @@ class FakeClient {
         this.id = id;
         this.behavior = behavior;
         this.personality = Math.random() < 0.1 ? 'rugger' : 'believer';
-        this.panic = Math.random() < 0.8 ;
+        this.panic = Math.random() < (0.8 -(this.behavior == "whale" ? 0.6:0) ) ;
         this.player = createNewPlayer();
         this.player.isSimulated = true;
         this.entryPrice = null;
@@ -116,7 +116,11 @@ class FakeClient {
             }
             return;
         }
-
+        
+        if (isDeepDetected(candles) && (this.panic)) {
+            const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
+            handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
+        }
         const profitRatio = price / this.entryPrice;
         if (this.personality === 'rugger' && profitRatio >= 1.1) {
             const percent = 0.75 + Math.random() * 0.25; // rugger : gros cash out
@@ -125,6 +129,8 @@ class FakeClient {
             const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
             handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
         }
+
+
     }
 
     runSheep(p, price) {
@@ -150,7 +156,7 @@ class FakeClient {
            } 
         }
 
-        if (isDown && (Math.random() < 0.4 || this.panic)) {
+        if (isDown && (isDeepDetected(candles) || this.panic)) {
             const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
             handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
         }
