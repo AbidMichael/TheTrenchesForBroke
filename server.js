@@ -9,7 +9,14 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 
-app.use(express.static('public'));
+// ➕ Servir les fichiers statiques
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ➕ Route GET / pour test HTTP
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
+
 
 
 const SELL_PERCENTAGES = [0.1, 0.25, 0.5, 0.75, 0.9, 1];
