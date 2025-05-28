@@ -41,7 +41,7 @@ ws.onmessage = (e) => {
         drawCandles([...gameState.candles, gameState.currentCandle]);
         updateStats();
         updateLeaderboard();
-        updateStatsEncadre(gameState.players, gameState.players);
+        updateStatsEncadre(gameState.players);
     }
 };
 
@@ -81,67 +81,73 @@ function updateStats() {
   `;
 }
 
-function updateStatsEncadre(fakeClients, players) {
-    // Filtrage bots vs joueurs humains (à adapter selon ta logique)
-    const bots = fakeClients;
-    const botTypes = {};
-    const botStats = {};
+function updateStatsEncadre(allPlayers) {
+    // Séparer bots et humains
+    const bots = allPlayers.filter(p => p.id.startsWith('FAKE'));
+    const humans = allPlayers.filter(p => !p.id.startsWith('FAKE'));
 
-    // Init types
+    // Regrouper les bots par type
+    const typeCounts = {};
+    const typeTokens = {};
+    const typeDollars = {};
     bots.forEach(bot => {
-        const t = bot.type; // ex: 'whale', 'sheep', 'sniper'
-        if (!botTypes[t]) {
-            botTypes[t] = [];
+        // Suppose que bot.type existe (sinon adapte ici)
+        if (!typeCounts[bot.type]) {
+            typeCounts[bot.type] = 0;
+            typeTokens[bot.type] = 0;
+            typeDollars[bot.type] = 0;
         }
-        botTypes[t].push(bot);
+        typeCounts[bot.type]++;
+        typeTokens[bot.type] += bot.tokens;
+        typeDollars[bot.type] += bot.dollars;
     });
 
-    // Calcule tokens et dollars par type
-    for (const type in botTypes) {
-        botStats[type] = {
-            count: botTypes[type].length,
-            tokens: botTypes[type].reduce((a, b) => a + b.tokens, 0),
-            dollars: botTypes[type].reduce((a, b) => a + b.dollars, 0),
-            gains: botTypes[type].reduce((a, b) => a + b.gains, 0)
-        };
-    }
-
-    // Total tokens/dollars
+    // Totaux
     const totalBots = bots.length;
-    const totalTokens = bots.reduce((a, b) => a + b.tokens, 0);
-    const totalDollars = bots.reduce((a, b) => a + b.dollars, 0);
-
-    // Joueurs humains
-    const humanTokens = Object.values(players).reduce((a, b) => a + b.tokens, 0);
-    const humanDollars = Object.values(players).reduce((a, b) => a + b.dollars, 0);
+    const totalHumans = humans.length;
+    const totalTokens = bots.reduce((sum, b) => sum + b.tokens, 0);
+    const totalDollars = bots.reduce((sum, b) => sum + b.dollars, 0);
+    const humanTokens = humans.reduce((sum, h) => sum + h.tokens, 0);
+    const humanDollars = humans.reduce((sum, h) => sum + h.dollars, 0);
 
     // Génération HTML
-    let statsHtml = `<b>Population IA :</b> ${totalBots} bots<br>`;
-    statsHtml += `<b>Répartition :</b><br><ul>`;
-    for (const type in botStats) {
-        const percent = ((botStats[type].count / totalBots) * 100).toFixed(1);
-        statsHtml += `<li>${type.charAt(0).toUpperCase() + type.slice(1)} : ${botStats[type].count} (${percent}%)</li>`;
+    let html = `<b>Population IA :</b> ${totalBots} bots<br>`;
+    html += `<b>Répartition :</b><ul>`;
+    for (const type in typeCounts) {
+        const percent = ((typeCounts[type] / totalBots) * 100).toFixed(1);
+        html += `<li>${type.charAt(0).toUpperCase() + type.slice(1)} : ${typeCounts[type]} (${percent}%)</li>`;
     }
-    statsHtml += `</ul>`;
-    statsHtml += `<b>Tokens par type :</b><br><ul>`;
-    for (const type in botStats) {
-        const percent = ((botStats[type].tokens / totalTokens) * 100).toFixed(1);
-        statsHtml += `<li>${type.charAt(0).toUpperCase() + type.slice(1)} : ${botStats[type].tokens.toFixed(2)} (${percent}%)</li>`;
+    html += `</ul>`;
+    html += `<b>Tokens par type :</b><ul>`;
+    for (const type in typeTokens) {
+        const percent = totalTokens ? ((typeTokens[type] / totalTokens) * 100).toFixed(1) : 0;
+        html += `<li>${type.charAt(0).toUpperCase() + type.slice(1)} : ${typeTokens[type].toFixed(2)} (${percent}%)</li>`;
     }
-    statsHtml += `</ul>`;
-    statsHtml += `<b>Dollars par type :</b><br><ul>`;
-    for (const type in botStats) {
-        statsHtml += `<li>${type.charAt(0).toUpperCase() + type.slice(1)} : ${botStats[type].dollars.toFixed(2)}</li>`;
+    html += `</ul>`;
+    html += `<b>Dollars par type :</b><ul>`;
+    for (const type in typeDollars) {
+        html += `<li>${type.charAt(0).toUpperCase() + type.slice(1)} : ${typeDollars[type].toFixed(2)}</li>`;
     }
-    statsHtml += `</ul>`;
-    statsHtml += `<b>Tokens humains :</b> ${humanTokens.toFixed(2)}<br>`;
-    statsHtml += `<b>Dollars humains :</b> ${humanDollars.toFixed(2)}<br>`;
+    html += `</ul>`;
+    html += `<b>Tokens humains :</b> ${humanTokens.toFixed(2)}<br>`;
+    html += `<b>Dollars humains :</b> ${humanDollars.toFixed(2)}<br>`;
 
-    // Tu peux continuer à ajouter d'autres stats ici selon tes besoins
+    // Exemples de stats complémentaires :
+    // Bot le plus riche
+    if (bots.length > 0) {
+        const topBot = bots.reduce((prev, curr) => prev.dollars > curr.dollars ? prev : curr);
+        html += `<b>Bot le plus riche :</b> ${topBot.type} (${topBot.dollars.toFixed(2)}$)<br>`;
+    }
 
-    document.getElementById("stats-content").innerHTML = statsHtml;
+    // % détenu par top 3 bots
+    const sortedByTokens = [...bots].sort((a, b) => b.tokens - a.tokens);
+    const top3 = sortedByTokens.slice(0, 3);
+    const top3Tokens = top3.reduce((sum, b) => sum + b.tokens, 0);
+    const top3Percent = totalTokens ? ((top3Tokens / totalTokens) * 100).toFixed(1) : 0;
+    html += `<b>% tokens détenu par les 3 plus gros bots :</b> ${top3Percent}%<br>`;
+
+    document.getElementById("stats-content").innerHTML = html;
 }
-
 function updateLeaderboard() {
     let html = '';
     const topPlayers = gameState.leaderboard.slice(0, 25);
