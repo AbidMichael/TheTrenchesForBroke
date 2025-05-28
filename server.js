@@ -60,7 +60,7 @@ class FakeClient {
         this.id = id;
         this.behavior = behavior;
         this.personality = Math.random() < 0.1 ? 'rugger' : 'believer';
-
+        this.panic = Math.random() < 0.8 ;
         this.player = createNewPlayer();
         this.player.isSimulated = true;
         this.entryPrice = null;
@@ -94,7 +94,7 @@ class FakeClient {
     }
 
     runWhale(p, price) {
-        if (p.tokens <= 0.001) {
+        if (p.tokens <= 0.0001) {
             if (price < 20000 && p.dollars > 5) {
                 const amount = p.dollars * (0.5 + Math.random() * 0.5);
                 this.entryPrice = price;
@@ -150,7 +150,7 @@ class FakeClient {
            } 
         }
 
-        if (isDown && Math.random() < 0.4) {
+        if (isDown && (Math.random() < 0.4 || this.panic)) {
             const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
             handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
         }
