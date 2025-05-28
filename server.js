@@ -8,7 +8,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const PORT = 443;
+const PORT = 3000;
 
 app.use(express.static('public'));
 
