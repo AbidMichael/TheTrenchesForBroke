@@ -51,8 +51,7 @@ class FakeClient {
         this.entryPrice = null;
         this.hasRecovered = false;
         this.isExited = false;
-        this.waitingToBuy = this.behavior === 'sniper'; // snipers attendent un deep
-        this.waitingToSellAfterReduction = false; // nouvelle logique pour sniper
+        this.waitingToBuy = this.behavior === 'sniper';
 
         this.cooldown = 1000 + Math.floor(Math.random() * 5000);
         this.lastAction = Date.now() - Math.floor(Math.random() * this.cooldown);
@@ -60,7 +59,6 @@ class FakeClient {
         players[id] = this.player;
 
         if (this.behavior === 'sheep') {
-            // sheep achètent dès le départ
             this.tryBuyImmediately();
         }
         else if (this.behavior === "whale") {
@@ -92,9 +90,22 @@ class FakeClient {
         const p = this.player;
         const price = currentCandle.c;
 
-        const logger = false; //this.id.includes("FAKE_0_");
+        const logger = false;
 
         if (logger) console.log(`[BOT] ${this.id} Tick | Tokens: ${p.tokens.toFixed(2)} | Dollars: ${p.dollars.toFixed(2)}`);
+
+        // Inject random volatility
+        const shock = this.injectVolatility();
+        if (shock > 1.5 && this.behavior === 'sheep' && p.dollars > 5) {
+            const amount = p.dollars * 0.6;
+            handleAction(this.id, { action: 'buy', amount });
+            if (logger) console.log(`[BOT] ${this.id} FOMO buys during pump`);
+        }
+        if (shock < 0.7 && this.behavior === 'sheep' && p.tokens > 0.1) {
+            const amount = p.tokens * 0.5;
+            handleAction(this.id, { action: 'sell', amount });
+            if (logger) console.log(`[BOT] ${this.id} panic sells during dump`);
+        }
 
         if (p.tokens <= 0.0001 && !this.waitingToBuy) return;
 
@@ -111,20 +122,13 @@ class FakeClient {
         if (this.behavior === 'sniper') {
             const tokenShare = p.tokens / totalTokensInCirculation;
             const gain = price / this.entryPrice;
-
-            if (tokenShare > 0.05) {
-                this.waitingToSellAfterReduction = true;
-                this.lastAction = now;
-                if (logger) console.log(`[BOT] ${this.id} holds >5%, delaying full exit`);
-                return;
-            }
-
-            if (this.waitingToSellAfterReduction && tokenShare <= 0.05 && gain > 1) {
+            if (this._heldOver5 && tokenShare <= 0.05 && gain > 1.05) {
                 handleAction(this.id, { action: 'sell', amount: p.tokens });
                 this.isExited = true;
-                if (logger) console.log(`[BOT] ${this.id} sells all after drop below 5% share at gain ${gain.toFixed(2)}x`);
+                if (logger) console.log(`[BOT] ${this.id} sniper selling all after falling under 5% with profit`);
                 return;
             }
+            this._heldOver5 = tokenShare > 0.05;
         }
 
         if (p.tokens > 0 && !this.hasRecovered) {
@@ -155,8 +159,14 @@ class FakeClient {
 
         this.lastAction = now;
     }
-}
 
+    injectVolatility() {
+        const chance = Math.random();
+        if (chance < 0.01) return 1.2 + Math.random() * 0.5;
+        if (chance > 0.99) return 0.5 + Math.random() * 0.3;
+        return 1;
+    }
+}
 
 
 setInterval(() => {
@@ -331,10 +341,10 @@ function spawnFakeClient() {
 
     // Calcul dynamique du nombre de bots à spawn en fonction du volume et du prix
     let multiplier = 1;
-    if (price > 5000) multiplier += 1;
-    if (price > 20000) multiplier += 2;
-    if (volume > 100) multiplier += 1;
-    if (volume > 1000) multiplier += 2;
+    if (price > 5000) multiplier += 3;
+    if (price > 20000) multiplier += 5;
+    if (volume > 100) multiplier += 5;
+    if (volume > 1000) multiplier += 20;
 
     const botsToAdd = Math.min(10, baseRate * multiplier); // Limite haute pour éviter le spam
 
