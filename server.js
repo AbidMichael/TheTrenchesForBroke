@@ -390,7 +390,7 @@ function spawnFakeClient() {
 function startFakeClientSimulation() {
     console.log('[SIMULATION] Starting intelligent fake clients...');
 
-    const total = 1000;
+    const total = 50;
     for (let i = 0; i < total; i++) {
         let behavior;
         const r = Math.random();
