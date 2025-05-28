@@ -62,6 +62,12 @@ class FakeClient {
             // sheep achètent dès le départ
             this.tryBuyImmediately();
         }
+        else if (this.behavior === "whale") {
+            if(price <= p.dollars*4){
+                this.tryBuyImmediately();
+            }
+        }
+
     }
 
     tryBuyImmediately() {
@@ -91,7 +97,7 @@ class FakeClient {
 
         if (p.tokens <= 0.0001 && !this.waitingToBuy) return;
 
-        if (p.tokens <= 0.0001 && this.waitingToBuy && (isDeepDetected(candles) || price <= p.dollars*4)) {
+        if (p.tokens <= 0.0001 && this.waitingToBuy && isDeepDetected(candles)) {
             const amount = p.dollars * (0.5 + Math.random() * 0.5);
             this.entryPrice = price;
             this.amountInvested = amount;
