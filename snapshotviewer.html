@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Graphique Candles + Transactions</title>
+  <style>
+    body { font-family: Arial; background: #111; color: #eee; }
+    canvas { border: 1px solid #555; display: block; margin: 20px auto; background: #1e1e1e; }
+    #transactions { max-height: 300px; overflow-y: auto; margin: 20px auto; width: 90%; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #333; padding: 5px; text-align: left; }
+    th { background-color: #222; }
+  </style>
+</head>
+<body>
+
+<h2 style="text-align: center;">Graphique des Bougies + Transactions</h2>
+<input type="file" id="fileInput" accept=".json"><br><br>
+
+<canvas id="chart" width="1000" height="400"></canvas>
+
+<div id="transactions">
+  <h3>Transactions</h3>
+  <table id="transactionTable">
+    <thead>
+      <tr>
+        <th>Joueur</th>
+        <th>Type</th>
+        <th>Montant</th>
+        <th>Prix</th>
+        <th>Heure</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const data = JSON.parse(evt.target.result);
+    drawCandles(data.candles);
+    listTransactions(data.transactions);
+  };
+  reader.readAsText(e.target.files[0]);
+});
+
+function drawCandles(candles) {
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const margin = 50;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  const candleWidth = 8;
+  const spacing = 4;
+  const totalWidth = candleWidth + spacing;
+  const visibleCount = Math.floor((w - margin * 2) / totalWidth);
+  const visibleCandles = candles.slice(-visibleCount);
+
+  const allPrices = candles.flatMap(c => [c.h, c.l]);
+  const maxPrice = Math.max(...allPrices);
+  const minPrice = Math.min(...allPrices);
+
+  function y(price) {
+    return h - margin - ((price - minPrice) / (maxPrice - minPrice)) * (h - 2 * margin);
+  }
+
+  ctx.strokeStyle = "#888";
+  ctx.beginPath();
+  ctx.moveTo(margin, margin);
+  ctx.lineTo(margin, h - margin);
+  ctx.lineTo(w - margin, h - margin);
+  ctx.stroke();
+
+  visibleCandles.forEach((candle, i) => {
+    const x = margin + i * totalWidth;
+    const isGreen = candle.c >= candle.o;
+    ctx.strokeStyle = isGreen ? "#0f0" : "#f00";
+
+    // Wick
+    ctx.beginPath();
+    ctx.moveTo(x + candleWidth / 2, y(candle.h));
+    ctx.lineTo(x + candleWidth / 2, y(candle.l));
+    ctx.stroke();
+
+    // Body
+    ctx.fillStyle = isGreen ? "#0f0" : "#f00";
+    const top = y(Math.max(candle.o, candle.c));
+    const bottom = y(Math.min(candle.o, candle.c));
+    ctx.fillRect(x, top, candleWidth, bottom - top);
+  });
+}
+
+function listTransactions(transactions) {
+  const tbody = document.querySelector('#transactionTable tbody');
+  tbody.innerHTML = "";
+  transactions.slice(-100).reverse().forEach(tx => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${tx.playerId}</td>
+      <td style="color:${tx.type === 'buy' ? 'lime' : 'red'}">${tx.type}</td>
+      <td>${tx.amount.toFixed(2)}</td>
+      <td>${tx.price.toFixed(2)}</td>
+      <td>${new Date(tx.time).toLocaleTimeString()}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+</script>
+
+</body>
+</html>

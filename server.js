@@ -20,6 +20,12 @@ if (!fs.existsSync(historyDir)) {
     console.log('[INIT] Dossier "history" créé.');
 }
 
+// Création du dossier s’il n’existe pas
+if (!fs.existsSync(historyDir)) {
+    fs.mkdirSync(historyDir);
+    console.log('[INIT] Dossier "history" créé.');
+}
+
 let transactionLog = [];
 
 // Serve fichiers statiques
@@ -33,6 +39,8 @@ server.listen(PORT, () => {
 
 const SELL_PERCENTAGES = [0.1, 0.25, 0.5, 0.75, 0.9, 1];
 
+let coinName = "$" + Math.random().toString(36).substring(2, 5);
+
 let players = {};
 // Charger les données des joueurs si elles existent
 if (fs.existsSync(playerDataFile)) {
@@ -45,16 +53,44 @@ if (fs.existsSync(playerDataFile)) {
             };
         }
         console.log(`[LOAD] Données de ${Object.keys(players).length} joueur(s) chargées.`);
+        const totalMoney = Object.values(players).reduce((sum, p) => sum + p.dollars, 0);
+        const newPrice = totalMoney / Object.keys(players).length * 0.01;
+        currentCandle = createCandle(newPrice);
     } catch (err) {
         console.error('[LOAD ERROR] Impossible de lire le fichier players.json :', err);
     }
 }
 let candles = [];
-let currentCandle = createCandle();
 let totalTokensInCirculation = 1;
+currentCandle = createCandle(100);
 
 let simulationStarted = false;
 let fakeClients = [];
+
+let rugDetected = false;
+let rugCheckWindow = [];
+
+function checkForRug(currentPrice) {
+    const now = Date.now();
+    rugCheckWindow.push({ time: now, price: currentPrice });
+
+    // Garder les 20 dernières secondes
+    rugCheckWindow = rugCheckWindow.filter(p => now - p.time <= 20000);
+
+    if (rugCheckWindow.length >= 2) {
+        const first = rugCheckWindow[0].price;
+        const last = rugCheckWindow[rugCheckWindow.length - 1].price;
+        const drop = (first - last) / first;
+
+        if (drop >= 0.5) {
+            rugDetected = true;
+            console.warn(`[RUG DETECTED] Drop of ${(drop * 100).toFixed(2)}% detected!`);
+            return true;
+        }
+    }
+
+    return false;
+}
 
 
 function isDeepDetected(candles, threshold = 0.2) {
@@ -85,6 +121,7 @@ class FakeClient {
 
         this.cooldown = 1000 + Math.floor(Math.random() * 5000);
         this.lastAction = Date.now() - Math.floor(Math.random() * this.cooldown);
+        this.resetTimeout = null;
 
         players[id] = this.player;
 
@@ -96,6 +133,23 @@ class FakeClient {
             if (price <= 10000) {
                 this.tryBuyImmediately();
             }
+        }
+    }
+
+    resetInvestmentCycle() {
+        if (this.isExited && this.player.dollars <= 5 && !this.waitingToBuy) {
+            // Recharge le bot comme s’il revenait
+            if (this.behavior === 'whale') this.player.dollars = 1000;
+            else if (this.behavior === 'sniper') this.player.dollars = 300;
+            else this.player.dollars = 100;
+
+            this.amountInvested = 0;
+            this.entryPrice = null;
+            this.hasRecovered = false;
+            this.isExited = false;
+            this.waitingToBuy = this.behavior === 'sniper';
+
+            console.log(`[BOT] ${this.id} re-injected capital and reset`);
         }
     }
 
@@ -123,6 +177,17 @@ class FakeClient {
         const logger = false;
 
         if (logger) console.log(`[BOT] ${this.id} Tick | Tokens: ${p.tokens.toFixed(2)} | Dollars: ${p.dollars.toFixed(2)}`);
+
+        if (rugDetected && this.player.tokens > 0 && !this.isExited) {
+            const amount = this.player.tokens;
+            handleAction(this.id, { action: 'sell', amount });
+            this.isExited = true;
+
+            if (this.id.includes("FAKE_0_")) {
+                if (logger) console.log(`[BOT] ${this.id} rug panic sell at price ${currentCandle.c.toFixed(2)}`);
+            }
+            return;
+        }
 
         // Inject random volatility
         const shock = this.injectVolatility();
@@ -187,7 +252,9 @@ class FakeClient {
             }
         }
 
+        this.resetInvestmentCycle();
         this.lastAction = now;
+
     }
 
     injectVolatility() {
@@ -210,15 +277,21 @@ setInterval(() => {
         if (candles.length > 50) candles.shift();
     }
     currentCandle = createCandle(currentCandle.c);
+    checkForRug(currentCandle.c);
+    if (rugDetected && Date.now() - rugCheckWindow[0].time > 30000) {
+        rugDetected = false;
+        rugCheckWindow = [];
+        console.log(`[RUG RESET] Panic ended`);
+    }
     broadcastGameState();
-}, 5000);
+}, 1000);
 
 function createCandle(open = 100) {
     return { o: open, h: open, l: open, c: open, t: Date.now() };
 }
 
 function generateId() {
-    return 'P' + Math.random().toString(36).substring(2, 10);
+    return Math.random().toString(36).substring(2, 32);
 }
 
 function createNewPlayer(name) {
@@ -403,9 +476,9 @@ function spawnFakeClient() {
         const bot = new FakeClient(id, behavior);
 
         // donne plus de capital aux whales
-        if (behavior === 'whale') bot.player.dollars = 1000;
-        else if (behavior === 'sniper') bot.player.dollars = 300;
-        else bot.player.dollars = 100;
+        if (behavior === 'whale') bot.player.dollars = 15000;
+        else if (behavior === 'sniper') bot.player.dollars = 1000;
+        else bot.player.dollars = 200;
 
         fakeClients.push(bot);
     }
@@ -440,17 +513,6 @@ app.post('/reset-game', (req, res) => {
 setInterval(() => {
     console.log('[RESET] Market reset triggered.');
 
-    // Force sell de tous les tokens
-    for (const [id, player] of Object.entries(players)) {
-        if (player.tokens > 0) {
-            const dollarsGained = player.tokens * currentCandle.c;
-            player.dollars += dollarsGained;
-            player.totalSold += dollarsGained;
-            player.gains = player.totalSold - player.totalInvested;
-            player.tokens = 0;
-        }
-    }
-
     // Sauvegarde snapshot
     const snapshot = {
         timestamp: new Date().toISOString(),
@@ -463,11 +525,23 @@ setInterval(() => {
         }))
     };
 
-    const fileName = `market_snapshot_${Date.now()}.json`;
+    const fileName = `market_snapshot_${coinName}_${Date.now()}.json`;
     fs.writeFileSync(path.join(historyDir, fileName), JSON.stringify(snapshot, null, 2));
     console.log(`[SNAPSHOT] Saved to ${fileName}`);
+}, 30 * 1000); // toutes les 5 minutes
 
+setInterval(() => {
     // Reset
+
+    // Force sell de tous les tokens
+    for (const [id, player] of Object.entries(players)) {
+        if (player.tokens > 0) {
+            player.totalSold += 0;
+            player.gains = 0;
+            player.tokens = 0;
+        }
+    }
+
     candles = [];
     transactionLog = [];
 

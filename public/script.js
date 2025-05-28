@@ -1,4 +1,4 @@
-const ws = new WebSocket(`wss://${location.host}`);
+const ws = new WebSocket(`ws://${location.host}`);
 let playerId, gameState = {};
 
 const canvas = document.getElementById('chart');
@@ -18,7 +18,7 @@ function getOrCreatePlayerId() {
     try {
         let id = localStorage.getItem('playerId');
         if (!id) {
-            id = 'P' + Math.random().toString(36).substring(2, 10);
+            id = Math.random().toString(36).substring(2, 32);
             localStorage.setItem('playerId', id);
             console.log('[LOCALSTORAGE] New ID generated:', id);
         } else {
@@ -27,7 +27,7 @@ function getOrCreatePlayerId() {
         return id;
     } catch (e) {
         console.warn('[LOCALSTORAGE] Unavailable, fallback to session-only ID');
-        return 'P' + Math.random().toString(36).substring(2, 10);
+        return Math.random().toString(36).substring(2, 32);
     }
 }
 
@@ -203,10 +203,18 @@ function drawCandles(candles) {
     if (candles.length === 0) return;
 
     // Find min/max for Y scale
-    let min = Math.min(...candles.map(c => c.l));
-    let max = Math.max(...candles.map(c => c.h));
-    if (min === max) { min -= 1; max += 1; }
+    let visibleCandles = candles; // tu peux ajouter un filtre ici si tu as un scroll plus tard
+
+    let min = Math.min(...visibleCandles.map(c => c.l));
+    let max = Math.max(...visibleCandles.map(c => c.h));
+
+    if (min === max) {
+        min -= 1;
+        max += 1;
+    }
+
     const range = max - min;
+
 
     // Axes (Y values)
     ctx.save();
