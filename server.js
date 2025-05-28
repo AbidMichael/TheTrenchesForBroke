@@ -61,7 +61,7 @@ class FakeClient {
         this.behavior = behavior;
         this.personality = Math.random() < 0.1 ? 'rugger' : 'believer';
         this.panic = Math.random() < (0.8 - (this.behavior == "whale" ? 0.6 : 0));
-        this.player = createNewPlayer();
+        this.player = createNewPlayer(id);
         this.player.isSimulated = true;
         this.entryPrice = null;
 
@@ -223,9 +223,10 @@ function generateId() {
     return 'P' + Math.random().toString(36).substring(2, 10);
 }
 
-function createNewPlayer() {
+function createNewPlayer(name) {
     console.log(`[PLAYER] Creating new player`);
     return {
+        id:name,
         dollars: 100,
         tokens: 0,
         averageBuy: 0,
@@ -246,12 +247,11 @@ wss.on('connection', (ws) => {
         if (data.type === 'connect') {
             playerId = data.playerId;
 
-            // 👇 Corrigé : si ID existant, le joueur est conservé
             if (playerId && players[playerId]) {
                 if (!playerId.startsWith("FAKE")) console.log(`[CONNECT] Reconnected existing player: ${playerId}`);
             } else {
                 playerId = playerId || generateId();
-                players[playerId] = createNewPlayer();
+                players[playerId] = createNewPlayer(playerId);
                 if (!playerId.startsWith("FAKE")) console.log(`[CONNECT] Created new player: ${playerId}`);
             }
 
