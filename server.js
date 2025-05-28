@@ -248,11 +248,11 @@ wss.on('connection', (ws) => {
 
             // 👇 Corrigé : si ID existant, le joueur est conservé
             if (playerId && players[playerId]) {
-                console.log(`[CONNECT] Reconnected existing player: ${playerId}`);
+                if (!playerId.startsWith("FAKE")) console.log(`[CONNECT] Reconnected existing player: ${playerId}`);
             } else {
                 playerId = playerId || generateId();
                 players[playerId] = createNewPlayer();
-                console.log(`[CONNECT] Created new player: ${playerId}`);
+                if (!playerId.startsWith("FAKE")) console.log(`[CONNECT] Created new player: ${playerId}`);
             }
 
             ws.playerId = playerId;
@@ -262,7 +262,7 @@ wss.on('connection', (ws) => {
         }
 
         if (!playerId || !players[playerId]) {
-            console.warn(`[WARN] Invalid playerId on action:`, playerId);
+            if (!playerId.startsWith("FAKE")) console.warn(`[WARN] Invalid playerId on action:`, playerId);
             return;
         }
 
@@ -288,11 +288,11 @@ function handleAction(playerId, data) {
             if (totalTokensInCirculation > 0) {
                 const priceImpactPercent = tokensBought / totalTokensInCirculation;
                 currentCandle.c += currentCandle.c * priceImpactPercent;
-                console.log(`[BUY] ${playerId} bought ${tokensBought.toFixed(4)} tokens, impact +${(priceImpactPercent * 100).toFixed(2)}%`);
+                if (!playerId.startsWith("FAKE")) console.log(`[BUY] ${playerId} bought ${tokensBought.toFixed(4)} tokens, impact +${(priceImpactPercent * 100).toFixed(2)}%`);
             } else {
                 const priceImpactPercent = tokensBought;
                 currentCandle.c += currentCandle.c * priceImpactPercent;
-                console.log(`[BUY] ${playerId} bought ${tokensBought.toFixed(4)} tokens (first buy), impact +${(priceImpactPercent * 100).toFixed(2)}%`);
+                if (!playerId.startsWith("FAKE")) console.log(`[BUY] ${playerId} bought ${tokensBought.toFixed(4)} tokens (first buy), impact +${(priceImpactPercent * 100).toFixed(2)}%`);
             }
 
             if (currentCandle.c > currentCandle.h) currentCandle.h = currentCandle.c;
@@ -304,7 +304,7 @@ function handleAction(playerId, data) {
             player.totalInvested += amount;
             player.totalClicks++;
         } else {
-            console.warn(`[BUY FAIL] ${playerId} tried to buy ${amount}, but only has ${player.dollars}`);
+            if (!playerId.startsWith("FAKE")) console.warn(`[BUY FAIL] ${playerId} tried to buy ${amount}, but only has ${player.dollars}`);
         }
     }
 
@@ -314,7 +314,7 @@ function handleAction(playerId, data) {
         const tokensToSell = data.amount;
 
         if (tokensToSell > player.tokens) {
-            console.warn(`[SELL BLOCKED] ${playerId} tried to sell ${tokensToSell} tokens, but only has ${player.tokens}`);
+            if (!playerId.startsWith("FAKE")) console.warn(`[SELL BLOCKED] ${playerId} tried to sell ${tokensToSell} tokens, but only has ${player.tokens}`);
             return;
         }
 
@@ -333,7 +333,7 @@ function handleAction(playerId, data) {
             if (currentCandle.c < currentCandle.l) currentCandle.l = currentCandle.c;
             if (currentCandle.c < 0.01) currentCandle.c = 0.01;
 
-            console.log(`[SELL] ${playerId} sold ${tokensToSell.toFixed(4)} tokens, impact -${(priceImpactPercent * 100).toFixed(2)}%`);
+            if (!playerId.startsWith("FAKE")) console.log(`[SELL] ${playerId} sold ${tokensToSell.toFixed(4)} tokens, impact -${(priceImpactPercent * 100).toFixed(2)}%`);
         }
 
     }
