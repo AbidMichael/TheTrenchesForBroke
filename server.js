@@ -68,7 +68,7 @@ class FakeClient {
         const p = this.player;
         const price = currentCandle.c;
         if (p.dollars > 1) {
-            const amount = p.dollars * (0.2 + Math.random() * 0.3);
+            const amount = p.dollars * (0.5 + Math.random() * 0.3);
             this.entryPrice = price;
             this.amountInvested = amount;
             handleAction(this.id, { action: 'buy', amount });
@@ -91,7 +91,7 @@ class FakeClient {
 
         if (p.tokens <= 0.0001 && !this.waitingToBuy) return;
 
-        if (p.tokens <= 0.0001 && this.waitingToBuy && isDeepDetected(candles)) {
+        if (p.tokens <= 0.0001 && this.waitingToBuy && (isDeepDetected(candles) || price <= p.dollars*4)) {
             const amount = p.dollars * (0.5 + Math.random() * 0.5);
             this.entryPrice = price;
             this.amountInvested = amount;
@@ -299,7 +299,7 @@ function broadcastGameState() {
 const BOT_ADD_INTERVAL = 10000;
 
 function spawnFakeClient() {
-    const total = 10;
+    const total = 100;
     for (let i = 0; i < total; i++) {
         let behavior;
         const r = Math.random();
