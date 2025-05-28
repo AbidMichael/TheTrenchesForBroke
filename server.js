@@ -60,7 +60,7 @@ class FakeClient {
         this.id = id;
         this.behavior = behavior;
         this.personality = Math.random() < 0.1 ? 'rugger' : 'believer';
-        this.panic = Math.random() < (0.8 -(this.behavior == "whale" ? 0.6:0) ) ;
+        this.panic = Math.random() < (0.8 - (this.behavior == "whale" ? 0.6 : 0));
         this.player = createNewPlayer();
         this.player.isSimulated = true;
         this.entryPrice = null;
@@ -95,7 +95,7 @@ class FakeClient {
 
     runWhale(p, price) {
         if (p.tokens <= 0.0001) {
-            if (price < 20000 && p.dollars > 5) {
+            if (price < 5000 && p.dollars > 5) {
                 const amount = p.dollars * (0.5 + Math.random() * 0.5);
                 this.entryPrice = price;
                 handleAction(this.id, { action: 'buy', amount });
@@ -116,7 +116,7 @@ class FakeClient {
             }
             return;
         }
-        
+
         if (isDeepDetected(candles) && (this.panic)) {
             const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
             handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
@@ -138,7 +138,7 @@ class FakeClient {
         if (!prev) return;
 
         if (p.tokens === 0) {
-            if (price < 30000 && p.dollars > 5) {
+            if (price < 50000 && p.dollars > 5) {
                 const amount = p.dollars * (0.2 + Math.random() * 0.3);
                 this.entryPrice = price;
                 handleAction(this.id, { action: 'buy', amount });
@@ -150,10 +150,10 @@ class FakeClient {
         const isDown = price < prev.c;
 
         if (!isDown && Math.random() < 0.6) {
-           if (p.dollars > 5) {
+            if (p.dollars > 5) {
                 const amount = p.dollars * (0.2 + Math.random() * 0.3);
                 handleAction(this.id, { action: 'buy', amount });
-           } 
+            }
         }
 
         if (isDown && (isDeepDetected(candles) || this.panic)) {
@@ -169,7 +169,7 @@ class FakeClient {
         if (!prev) return;
 
         if (p.tokens === 0) {
-            if (price < 10000 && p.dollars > 5) {
+            if (price < 20000 && p.dollars > 5) {
                 const amount = p.dollars * (0.5 + Math.random() * 0.5); // 50 à 100 % du cash
                 this.entryPrice = price;
                 handleAction(this.id, { action: 'buy', amount });
@@ -363,7 +363,7 @@ function broadcastGameState() {
 
 
 
-const BOT_ADD_INTERVAL = 10000; 
+const BOT_ADD_INTERVAL = 10000;
 
 function spawnFakeClient() {
     const total = 100;
@@ -395,7 +395,7 @@ function startFakeClientSimulation() {
         let behavior;
         const r = Math.random();
         if (r < 0.05) behavior = 'whale';
-        else if (r < 0.2) behavior = 'sniper';
+        else if (r < 0.1) behavior = 'sniper';
         else behavior = 'sheep';
 
         const id = `FAKE_${i}_${behavior}`;
