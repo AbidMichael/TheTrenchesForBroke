@@ -27,9 +27,6 @@ let simulationStarted = false;
 let fakeClients = [];
 
 
-function getMarketCap() {
-    return totalTokensInCirculation * currentCandle.c;
-}
 
 function isDeepDetected(candles, threshold = 0.2) {
     if (candles.length < 5) return false;
@@ -42,161 +39,90 @@ function isDeepDetected(candles, threshold = 0.2) {
     return variation >= threshold;
 }
 
-function isChartStagnating(candles, threshold = 0.03) {
-    if (candles.length < 5) return false;
-    const last5 = candles.slice(-5);
-    const highs = last5.map(c => c.h);
-    const lows = last5.map(c => c.l);
-
-    const max = Math.max(...highs);
-    const min = Math.min(...lows);
-    const variation = (max - min) / max;
-
-    return variation < threshold;
-}
-
 class FakeClient {
     constructor(id, behavior) {
         this.id = id;
-        this.behavior = behavior;
+        this.behavior = behavior; // 'whale', 'sheep', 'sniper'
         this.personality = Math.random() < 0.1 ? 'rugger' : 'believer';
-        this.panic = Math.random() < (0.8 - (this.behavior == "whale" ? 0.6 : 0));
+        this.state = 'waiting';
+
         this.player = createNewPlayer(id);
         this.player.isSimulated = true;
-        this.entryPrice = null;
 
-        this.cooldown = 1000 + Math.floor(Math.random() * 5000);
-        this.lastAction = Date.now() - Math.floor(Math.random() * this.cooldown);
+        this.entryPrice = null;
+        this.stopLoss = null;
+        this.takeProfit = null;
+        this.hasExited = false;
+        this.amountInvested = 0;
 
         players[id] = this.player;
     }
 
     tick() {
-        const now = Date.now();
-        if (now - this.lastAction < this.cooldown) return;
-
         const p = this.player;
         const price = currentCandle.c;
+        const lastCandles = candles.slice(-5);
 
-        switch (this.behavior) {
-            case 'whale':
-                this.runWhale(p, price);
-                break;
-            case 'sheep':
-                this.runSheep(p, price);
-                break;
-            case 'sniper':
-                this.runSniper(p, price);
-                break;
+        if (this.hasExited) return;
+
+        // Si pas encore entré
+        if (!this.entryPrice && p.dollars > 0) {
+            const deepDetected = isDeepDetected(candles);
+            const recentHigh = Math.max(...lastCandles.map(c => c.h));
+            const recentLow = Math.min(...lastCandles.map(c => c.l));
+
+            // Calculer une estimation d'entrée basée sur comportement
+            let entryThreshold = 0;
+            if (this.behavior === 'whale') entryThreshold = recentLow * 1.1;
+            else if (this.behavior === 'sniper') entryThreshold = recentLow * 1.05;
+            else entryThreshold = recentLow * 1.2;
+
+            if (price <= entryThreshold && deepDetected) {
+                const amount = p.dollars;
+                this.entryPrice = price;
+                this.amountInvested = amount;
+
+                handleAction(this.id, { action: 'buy', amount });
+
+                // Take profit calculé
+                const capitalFactor = amount >= 500 ? 1.5 : amount >= 200 ? 1.7 : 2.0;
+                this.takeProfit = this.entryPrice * capitalFactor;
+                this.stopLoss = this.entryPrice * 0.6;
+
+                return;
+            }
         }
 
-        this.lastAction = now;
-    }
+        // Une fois investi
+        if (this.entryPrice && p.tokens > 0) {
+            const currentValue = p.tokens * price;
+            const net = currentValue + p.dollars;
+            const gains = price / this.entryPrice;
 
-    runWhale(p, price) {
-        if (p.tokens <= 0.0001) {
-            if (price < 5000 && p.dollars > 5) {
-                const amount = p.dollars * (0.5 + Math.random() * 0.5);
-                this.entryPrice = price;
-                handleAction(this.id, { action: 'buy', amount });
+            // Stop Loss
+            if (price <= this.stopLoss) {
+                handleAction(this.id, { action: 'sell', amount: p.tokens });
+                this.hasExited = true;
                 return;
             }
 
-            if (isChartStagnating(candles) && price / this.entryPrice > 1.2 && p.tokens > 0.1) {
-                const percent = 0.1 + Math.random() * 0.2; // vendre 10–30%
-                handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
+            // Take Profit (retirer la mise de départ)
+            if (!this.initialWithdrawn && price >= this.takeProfit) {
+                const recoveryAmount = this.amountInvested; // Mise de départ exacte
+                const sellAmount = recoveryAmount / price;
+                handleAction(this.id, { action: 'sell', amount: Math.min(sellAmount, p.tokens) });
+                this.initialWithdrawn = true;
                 return;
             }
 
-            if (isDeepDetected(candles) && p.dollars > 200) {
-                const amount = p.dollars * 0.9;
-                this.entryPrice = price;
-                handleAction(this.id, { action: 'buy', amount });
+            // Full exit si gros gain
+            if (gains >= 3.0 || (this.personality === 'rugger' && gains >= 2.0)) {
+                handleAction(this.id, { action: 'sell', amount: p.tokens });
+                this.hasExited = true;
                 return;
-            }
-            return;
-        }
-
-        if (isDeepDetected(candles) && (this.panic)) {
-            const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
-            handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
-        }
-        const profitRatio = price / this.entryPrice;
-        if (this.personality === 'rugger' && profitRatio >= 2) {
-            const percent = 0.75 + Math.random() * 0.25; // rugger : gros cash out
-            handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
-        } else if (profitRatio >= 2.0 || (profitRatio >= 3 && Math.random() < 0.5)) {
-            const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
-            handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
-        }
-
-
-    }
-
-    runSheep(p, price) {
-        const prev = candles.at(-1);
-        if (!prev) return;
-
-        if (p.tokens === 0) {
-            if (price < 50000 && p.dollars > 5) {
-                const amount = p.dollars * (0.2 + Math.random() * 0.3);
-                this.entryPrice = price;
-                handleAction(this.id, { action: 'buy', amount });
-            }
-            return;
-        }
-
-
-        const isDown = price < prev.c;
-
-        if (!isDown && Math.random() < 0.6) {
-            if (p.dollars > 5) {
-                const amount = p.dollars * (0.2 + Math.random() * 0.3);
-                handleAction(this.id, { action: 'buy', amount });
-            }
-        }
-
-        if (isDown && (isDeepDetected(candles) || this.panic)) {
-            const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
-            handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
-        }
-    }
-
-
-    runSniper(p, price) {
-
-        const prev = candles.at(-1);
-        if (!prev) return;
-
-        if (p.tokens === 0) {
-            if (price < 20000 && p.dollars > 5) {
-                const amount = p.dollars * (0.5 + Math.random() * 0.5); // 50 à 100 % du cash
-                this.entryPrice = price;
-                handleAction(this.id, { action: 'buy', amount });
-                return;
-            }
-            if (isChartStagnating(candles) && price / this.entryPrice > 1.3 && p.tokens > 0.1) {
-                const percent = 0.25 + Math.random() * 0.25; // vendre 25–50%
-                handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
-                return;
-            }
-            if (price < prev.l * 0.5 && p.dollars > 10) {
-                const amount = p.dollars * (0.3 + Math.random() * 0.5);
-                this.entryPrice = price;
-                handleAction(this.id, { action: 'buy', amount });
-            }
-            return;
-        }
-
-        if (price > prev.h && this.entryPrice) {
-            const gain = price / this.entryPrice;
-            if ((this.personality === 'rugger' && gain > 1.1) || gain > 1.5) {
-                const amount = p.tokens * 0.9;
-                handleAction(this.id, { action: 'sell', amount });
             }
         }
     }
-
 }
 
 
@@ -224,7 +150,7 @@ function generateId() {
 }
 
 function createNewPlayer(name) {
-    console.log(`[PLAYER] Creating new player`);
+    //console.log(`[PLAYER] Creating new player`);
     return {
         id:name,
         dollars: 100,
@@ -358,7 +284,7 @@ function broadcastGameState() {
         }
     });
 
-    console.log(`[SYNC] Broadcast to ${wss.clients.size} clients`);
+    // console.log(`[SYNC] Broadcast to ${wss.clients.size} clients`);
 }
 
 
@@ -416,3 +342,5 @@ function startFakeClientSimulation() {
         broadcastGameState();
     }, 500);
 }
+
+startFakeClientSimulation();
