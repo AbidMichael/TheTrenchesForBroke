@@ -302,18 +302,31 @@ function broadcastGameState() {
 
 
 
-const BOT_ADD_INTERVAL = 10000;
+const BOT_ADD_INTERVAL = 1000;
 
 function spawnFakeClient() {
-    const total = 100;
-    for (let i = 0; i < total; i++) {
+    const baseRate = 1; // nombre de bots minimum à ajouter
+
+    const price = currentCandle.c;
+    const volume = totalTokensInCirculation;
+
+    // Calcul dynamique du nombre de bots à spawn en fonction du volume et du prix
+    let multiplier = 1;
+    if (price > 5000) multiplier += 1;
+    if (price > 20000) multiplier += 2;
+    if (volume > 100) multiplier += 1;
+    if (volume > 1000) multiplier += 2;
+
+    const botsToAdd = Math.min(10, baseRate * multiplier); // Limite haute pour éviter le spam
+
+    for (let i = 0; i < botsToAdd; i++) {
         let behavior;
         const r = Math.random();
         if (r < 0.05) behavior = 'whale';
         else if (r < 0.2) behavior = 'sniper';
         else behavior = 'sheep';
 
-        const id = `FAKE_${i}_${behavior}`;
+        const id = `FAKE_${Date.now()}_${Math.floor(Math.random() * 100000)}_${behavior}`;
         const bot = new FakeClient(id, behavior);
 
         // donne plus de capital aux whales
@@ -323,30 +336,10 @@ function spawnFakeClient() {
 
         fakeClients.push(bot);
     }
-
 }
 
 function startFakeClientSimulation() {
     console.log('[SIMULATION] Starting intelligent fake clients...');
-
-    const total = 10;
-    for (let i = 0; i < total; i++) {
-        let behavior;
-        const r = Math.random();
-        if (r < 0.8) behavior = 'whale';
-        else if (r < 0.1) behavior = 'sniper';
-        else behavior = 'sheep';
-
-        const id = `FAKE_${i}_${behavior}`;
-        const bot = new FakeClient(id, behavior);
-
-        // donne plus de capital aux whales
-        if (behavior === 'whale') bot.player.dollars = 1000;
-        else if (behavior === 'sniper') bot.player.dollars = 300;
-        else bot.player.dollars = 100;
-
-        fakeClients.push(bot);
-    }
 
     setInterval(spawnFakeClient, BOT_ADD_INTERVAL);
 
