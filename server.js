@@ -7,6 +7,21 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+
+const fs = require('fs');
+const historyDir = path.join(__dirname, 'history');
+
+const playerDataFile = path.join(__dirname, 'history', 'players.json');
+
+
+// Création du dossier s’il n’existe pas
+if (!fs.existsSync(historyDir)) {
+    fs.mkdirSync(historyDir);
+    console.log('[INIT] Dossier "history" créé.');
+}
+
+let transactionLog = [];
+
 // Serve fichiers statiques
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -19,6 +34,21 @@ server.listen(PORT, () => {
 const SELL_PERCENTAGES = [0.1, 0.25, 0.5, 0.75, 0.9, 1];
 
 let players = {};
+// Charger les données des joueurs si elles existent
+if (fs.existsSync(playerDataFile)) {
+    try {
+        const savedPlayers = JSON.parse(fs.readFileSync(playerDataFile, 'utf-8'));
+        for (const [id, data] of Object.entries(savedPlayers)) {
+            players[id] = {
+                ...createNewPlayer(id), // pour garantir les propriétés par défaut
+                ...data, // overwrite avec les données sauvegardées
+            };
+        }
+        console.log(`[LOAD] Données de ${Object.keys(players).length} joueur(s) chargées.`);
+    } catch (err) {
+        console.error('[LOAD ERROR] Impossible de lire le fichier players.json :', err);
+    }
+}
 let candles = [];
 let currentCandle = createCandle();
 let totalTokensInCirculation = 1;
@@ -63,7 +93,7 @@ class FakeClient {
         }
         else if (this.behavior === "whale") {
             const price = currentCandle.c;
-            if(price <= 10000){
+            if (price <= 10000) {
                 this.tryBuyImmediately();
             }
         }
@@ -194,7 +224,7 @@ function generateId() {
 function createNewPlayer(name) {
     //console.log(`[PLAYER] Creating new player`);
     return {
-        id:name,
+        id: name,
         dollars: 500,
         tokens: 0,
         averageBuy: 0,
@@ -271,6 +301,13 @@ function handleAction(playerId, data) {
             player.dollars -= amount;
             player.totalInvested += amount;
             player.totalClicks++;
+            transactionLog.push({
+                playerId,
+                type: data.action,
+                amount: data.amount,
+                price: currentCandle.c,
+                time: Date.now()
+            });
         } else {
             if (!playerId.startsWith("FAKE")) console.warn(`[BUY FAIL] ${playerId} tried to buy ${amount}, but only has ${player.dollars}`);
         }
@@ -302,6 +339,13 @@ function handleAction(playerId, data) {
             if (currentCandle.c < 0.01) currentCandle.c = 0.01;
 
             if (!playerId.startsWith("FAKE")) console.log(`[SELL] ${playerId} sold ${tokensToSell.toFixed(4)} tokens, impact -${(priceImpactPercent * 100).toFixed(2)}%`);
+            transactionLog.push({
+                playerId,
+                type: data.action,
+                amount: data.amount,
+                price: currentCandle.c,
+                time: Date.now()
+            });
         }
 
     }
@@ -390,3 +434,81 @@ app.post('/reset-game', (req, res) => {
 
     res.json({ message: 'Game state has been reset.' });
 });
+
+
+
+setInterval(() => {
+    console.log('[RESET] Market reset triggered.');
+
+    // Force sell de tous les tokens
+    for (const [id, player] of Object.entries(players)) {
+        if (player.tokens > 0) {
+            const dollarsGained = player.tokens * currentCandle.c;
+            player.dollars += dollarsGained;
+            player.totalSold += dollarsGained;
+            player.gains = player.totalSold - player.totalInvested;
+            player.tokens = 0;
+        }
+    }
+
+    // Sauvegarde snapshot
+    const snapshot = {
+        timestamp: new Date().toISOString(),
+        candles: [...candles, currentCandle],
+        transactions: [...transactionLog],
+        leaderboard: Object.entries(players).map(([id, p]) => ({
+            id,
+            dollars: p.dollars,
+            gains: p.gains
+        }))
+    };
+
+    const fileName = `market_snapshot_${Date.now()}.json`;
+    fs.writeFileSync(path.join(historyDir, fileName), JSON.stringify(snapshot, null, 2));
+    console.log(`[SNAPSHOT] Saved to ${fileName}`);
+
+    // Reset
+    candles = [];
+    transactionLog = [];
+
+    const totalMoney = Object.values(players).reduce((sum, p) => sum + p.dollars, 0);
+    const newPrice = totalMoney / Object.keys(players).length * 0.01;
+
+    totalTokensInCirculation = 0;
+    currentCandle = createCandle(newPrice);
+
+    console.log(`[RESET] New token price set to ${newPrice.toFixed(2)}`);
+
+    broadcastGameState();
+    savePlayerData();
+}, 5 * 60 * 1000); // toutes les 5 minutes
+
+
+
+function savePlayerData() {
+    const toSave = {};
+    for (const [id, p] of Object.entries(players)) {
+        if (!p.isSimulated) {
+            toSave[id] = {
+                dollars: p.dollars,
+                tokens: p.tokens,
+                averageBuy: p.averageBuy,
+                gains: p.gains,
+                totalInvested: p.totalInvested,
+                totalSold: p.totalSold,
+                totalClicks: p.totalClicks,
+                lastActive: p.lastActive
+            };
+        }
+    }
+
+    try {
+        fs.writeFileSync(playerDataFile, JSON.stringify(toSave, null, 2));
+        console.log('[SAVE] Données des joueurs sauvegardées.');
+    } catch (err) {
+        console.error('[SAVE ERROR] Échec de la sauvegarde des joueurs :', err);
+    }
+}
+
+// Sauvegarde toutes les 30s
+setInterval(savePlayerData, 30 * 1000);
