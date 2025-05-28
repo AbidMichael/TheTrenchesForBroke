@@ -1,16 +1,12 @@
 const express = require('express');
 
-const fs = require('fs');
-const https = require('https');
+
 const WebSocket = require('ws');
+const http = require('https');
 
-const server = https.createServer({
-  cert: fs.readFileSync('cert.pem'),
-  key: fs.readFileSync('key.pem')
-});
-
+const app = express();
+const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-
 
 const PORT = 443;
 
