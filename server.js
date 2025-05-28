@@ -64,7 +64,7 @@ class FakeClient {
         }
         else if (this.behavior === "whale") {
             const price = currentCandle.c;
-            if(price <= this.player.dollars*4){
+            if(price <= 10000){
                 this.tryBuyImmediately();
             }
         }
@@ -137,7 +137,6 @@ class FakeClient {
         this.lastAction = now;
     }
 }
-
 
 
 
