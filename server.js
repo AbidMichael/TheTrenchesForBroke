@@ -27,9 +27,8 @@ let simulationStarted = false;
 let fakeClients = [];
 
 
-
 function isDeepDetected(candles, threshold = 0.2) {
-    if (candles.length < 5) return false;
+    if (candles.length < 5) return true; // Considère qu'il y a un deep s'il n'y a pas assez de candles
 
     const recent = candles.slice(-5);
     const maxHigh = Math.max(...recent.map(c => c.h));
@@ -56,6 +55,9 @@ class FakeClient {
         this.amountInvested = 0;
 
         players[id] = this.player;
+
+        // Seul le premier bot créé a un flag de log activé
+        this.enableLogs = fakeClients.length === 0;
     }
 
     tick() {
@@ -65,17 +67,30 @@ class FakeClient {
 
         if (this.hasExited) return;
 
+        if (this.enableLogs) {
+            console.log(`\n[${this.id}] Tick START`);
+            console.log(`Current price: ${price.toFixed(2)}`);
+            console.log(`Entry price: ${this.entryPrice}`);
+            console.log(`Stop loss: ${this.stopLoss}`);
+            console.log(`Take profit: ${this.takeProfit}`);
+            console.log(`Has exited: ${this.hasExited}`);
+            console.log(`Dollars: ${p.dollars.toFixed(2)} | Tokens: ${p.tokens.toFixed(4)}`);
+        }
+
         // Si pas encore entré
         if (!this.entryPrice && p.dollars > 0) {
             const deepDetected = isDeepDetected(candles);
             const recentHigh = Math.max(...lastCandles.map(c => c.h));
             const recentLow = Math.min(...lastCandles.map(c => c.l));
 
-            // Calculer une estimation d'entrée basée sur comportement
             let entryThreshold = 0;
             if (this.behavior === 'whale') entryThreshold = recentLow * 1.1;
             else if (this.behavior === 'sniper') entryThreshold = recentLow * 1.05;
             else entryThreshold = recentLow * 1.2;
+
+            if (this.enableLogs) {
+                console.log(`Evaluating entry: price <= ${entryThreshold.toFixed(2)} | deepDetected: ${deepDetected}`);
+            }
 
             if (price <= entryThreshold && deepDetected) {
                 const amount = p.dollars;
@@ -84,46 +99,48 @@ class FakeClient {
 
                 handleAction(this.id, { action: 'buy', amount });
 
-                // Take profit calculé
                 const capitalFactor = amount >= 500 ? 1.5 : amount >= 200 ? 1.7 : 2.0;
                 this.takeProfit = this.entryPrice * capitalFactor;
                 this.stopLoss = this.entryPrice * 0.6;
 
+                if (this.enableLogs) {
+                    console.log(`[BUY] at ${price.toFixed(2)} for ${amount.toFixed(2)}$ | TP: ${this.takeProfit.toFixed(2)} | SL: ${this.stopLoss.toFixed(2)}`);
+                }
                 return;
             }
         }
 
-        // Une fois investi
         if (this.entryPrice && p.tokens > 0) {
             const currentValue = p.tokens * price;
             const net = currentValue + p.dollars;
             const gains = price / this.entryPrice;
 
-            // Stop Loss
             if (price <= this.stopLoss) {
                 handleAction(this.id, { action: 'sell', amount: p.tokens });
                 this.hasExited = true;
+                if (this.enableLogs) console.log(`[STOPLOSS] Selling all at ${price.toFixed(2)}`);
                 return;
             }
 
-            // Take Profit (retirer la mise de départ)
             if (!this.initialWithdrawn && price >= this.takeProfit) {
-                const recoveryAmount = this.amountInvested; // Mise de départ exacte
+                const recoveryAmount = this.amountInvested;
                 const sellAmount = recoveryAmount / price;
                 handleAction(this.id, { action: 'sell', amount: Math.min(sellAmount, p.tokens) });
                 this.initialWithdrawn = true;
+                if (this.enableLogs) console.log(`[TAKE PROFIT] Selling ${Math.min(sellAmount, p.tokens).toFixed(4)} to recover ${recoveryAmount.toFixed(2)}$`);
                 return;
             }
 
-            // Full exit si gros gain
             if (gains >= 3.0 || (this.personality === 'rugger' && gains >= 2.0)) {
                 handleAction(this.id, { action: 'sell', amount: p.tokens });
                 this.hasExited = true;
+                if (this.enableLogs) console.log(`[EXIT] Selling all for ${gains.toFixed(2)}x gain`);
                 return;
             }
         }
     }
 }
+
 
 
 
