@@ -52,12 +52,13 @@ class FakeClient {
         this.hasRecovered = false;
         this.isExited = false;
         this.waitingToBuy = this.behavior === 'sniper'; // snipers attendent un deep
+        this.waitingToSellAfterReduction = false; // nouvelle logique pour sniper
 
         this.cooldown = 1000 + Math.floor(Math.random() * 5000);
         this.lastAction = Date.now() - Math.floor(Math.random() * this.cooldown);
 
         players[id] = this.player;
-        
+
         if (this.behavior === 'sheep') {
             // sheep achètent dès le départ
             this.tryBuyImmediately();
@@ -68,7 +69,6 @@ class FakeClient {
                 this.tryBuyImmediately();
             }
         }
-
     }
 
     tryBuyImmediately() {
@@ -106,6 +106,25 @@ class FakeClient {
             this.waitingToBuy = false;
             if (logger) console.log(`[BOT] ${this.id} buys ${amount.toFixed(2)} on deep at price ${price.toFixed(2)}`);
             return;
+        }
+
+        if (this.behavior === 'sniper') {
+            const tokenShare = p.tokens / totalTokensInCirculation;
+            const gain = price / this.entryPrice;
+
+            if (tokenShare > 0.05) {
+                this.waitingToSellAfterReduction = true;
+                this.lastAction = now;
+                if (logger) console.log(`[BOT] ${this.id} holds >5%, delaying full exit`);
+                return;
+            }
+
+            if (this.waitingToSellAfterReduction && tokenShare <= 0.05 && gain > 1) {
+                handleAction(this.id, { action: 'sell', amount: p.tokens });
+                this.isExited = true;
+                if (logger) console.log(`[BOT] ${this.id} sells all after drop below 5% share at gain ${gain.toFixed(2)}x`);
+                return;
+            }
         }
 
         if (p.tokens > 0 && !this.hasRecovered) {
