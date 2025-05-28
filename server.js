@@ -350,4 +350,15 @@ function startFakeClientSimulation() {
     }, 500);
 }
 
-startFakeClientSimulation();
+app.post('/reset-game', (req, res) => {
+    console.log("[RESET] Resetting game state...");
+
+    players = {};
+    fakeClients = [];
+    candles = [];
+    currentCandle = createCandle();
+    totalTokensInCirculation = 10;
+    simulationStarted = false;
+
+    res.json({ message: 'Game state has been reset.' });
+});
