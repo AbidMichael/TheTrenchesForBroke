@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>The Trenches For Broke</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="game-area">
+            <div id="chartWrapper" style="overflow-x: auto; width: 100%;">
+                <canvas id="chart" width="3000" height="1000"></canvas>
+            </div>
+
+            <div class="controls">
+                <div class="buy">
+                    <button data-buy="1">$1</button>
+                    <button data-buy="10">$10</button>
+                    <button data-buy="100">$100</button>
+                    <button data-buy="1000">$1000</button>
+                    <input id="customBuy" placeholder="Custom Buy ($)">
+                    <button id="customBuyBtn">Acheter Custom</button>
+                </div>
+
+                <div id="sellControls">
+                    <button onclick="sellPercent(10)">Sell 10%</button>
+                    <button onclick="sellPercent(25)">Sell 25%</button>
+                    <button onclick="sellPercent(50)">Sell 50%</button>
+                    <button onclick="sellPercent(75)">Sell 75%</button>
+                    <button onclick="sellPercent(90)">Sell 90%</button>
+                    <button onclick="sellPercent(100)">Sell 100%</button>
+                    <button onclick="sellToBreakEven()">Sell Initial</button>
+                </div>
+            </div>
+
+            <div id="stats">
+                
+            </div>
+
+            <div class="rules-info">
+                <h3>📌 Comment jouer à The Trenches For Broke ?</h3>
+                <ul>
+                    <li>Chaque trader commence avec 100 $.</li>
+                    <li>Les candles durent 5 secondes.</li>
+                    <li>Achat : hausse du prix / Vente : chute du prix !</li>
+                    <li>2 minutes d'inactivité ? 1% de tes tokens brûlent par candle.</li>
+                    <li>Gagne ta place parmi les légendes grâce à tes gains nets.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="leaderboard">
+            <h3>🏆 Les légendes des Tranchées</h3>
+            <div id="leaderboard"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
