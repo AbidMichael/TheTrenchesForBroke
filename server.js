@@ -57,12 +57,13 @@ class FakeClient {
         this.lastAction = Date.now() - Math.floor(Math.random() * this.cooldown);
 
         players[id] = this.player;
-
+        
         if (this.behavior === 'sheep') {
             // sheep achètent dès le départ
             this.tryBuyImmediately();
         }
         else if (this.behavior === "whale") {
+            const price = currentCandle.c;
             if(price <= p.dollars*4){
                 this.tryBuyImmediately();
             }
