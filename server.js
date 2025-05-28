@@ -292,7 +292,7 @@ function broadcastGameState() {
 const BOT_ADD_INTERVAL = 10000;
 
 function spawnFakeClient() {
-    const total = 100;
+    const total = 10;
     for (let i = 0; i < total; i++) {
         let behavior;
         const r = Math.random();
@@ -316,7 +316,7 @@ function spawnFakeClient() {
 function startFakeClientSimulation() {
     console.log('[SIMULATION] Starting intelligent fake clients...');
 
-    const total = 50;
+    const total = 10;
     for (let i = 0; i < total; i++) {
         let behavior;
         const r = Math.random();
