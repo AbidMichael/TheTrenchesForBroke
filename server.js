@@ -1,15 +1,38 @@
+const fs = require('fs');
+const https = require('https');
 const express = require('express');
 const WebSocket = require('ws');
-const http = require('http');
+const path = require('path');
 
 const app = express();
-const server = http.createServer(app);
+
+// Chargement SSL
+const sslOptions = {
+  key: fs.readFileSync('./ssl/key.pem'),       // chemin vers ta clé
+  cert: fs.readFileSync('./ssl/cert.pem'),     // chemin vers ton cert
+};
+
+// Création serveur HTTPS
+const server = https.createServer(sslOptions, app);
+
+// WebSocket sur HTTPS
 const wss = new WebSocket.Server({ server });
 
-const PORT = 3000;
+// Serveur statique
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(express.static('public'));
+// Exemple WebSocket
+wss.on('connection', (ws) => {
+  console.log("Nouvelle connexion sécurisée.");
+  ws.send(JSON.stringify({ message: "Connexion sécurisée réussie." }));
+  // Ton code ici
+});
 
+// Lancer serveur
+const PORT = 443;
+server.listen(PORT, () => {
+  console.log(`Serveur HTTPS lancé sur le port ${PORT}`);
+});
 
 const SELL_PERCENTAGES = [0.1, 0.25, 0.5, 0.75, 0.9, 1];
 
@@ -318,9 +341,6 @@ function broadcastGameState() {
     console.log(`[SYNC] Broadcast to ${wss.clients.size} clients`);
 }
 
-server.listen(PORT, () => {
-    console.log(`🚀 The Trenches For Broke running at http://localhost:${PORT}`);
-});
 
 
 function startFakeClientSimulation() {
