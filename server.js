@@ -1,22 +1,14 @@
 const express = require('express');
-
-const path = require('path');
 const WebSocket = require('ws');
-const http = require('https');
+const http = require('http');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+const PORT = 3000;
 
-// ➕ Servir les fichiers statiques
-app.use(express.static(path.join(__dirname, 'public')));
-
-// ➕ Route GET / pour test HTTP
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'));
-});
-
+app.use(express.static('public'));
 
 
 const SELL_PERCENTAGES = [0.1, 0.25, 0.5, 0.75, 0.9, 1];
@@ -326,10 +318,7 @@ function broadcastGameState() {
     console.log(`[SYNC] Broadcast to ${wss.clients.size} clients`);
 }
 
-
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, () => {
     console.log(`🚀 The Trenches For Broke running at http://localhost:${PORT}`);
 });
 
