@@ -161,8 +161,8 @@ class FakeClient {
                 handleAction(this.id, { action: 'buy', amount });
                 return;
             }
-            if (isChartStagnating(candles) && price / this.entryPrice > 1.2 && p.tokens > 0.1) {
-                const percent = 0.1 + Math.random() * 0.2; // vendre 10–30%
+            if (isChartStagnating(candles) && price / this.entryPrice > 1.3 && p.tokens > 0.1) {
+                const percent = 0.25 + Math.random() * 0.25; // vendre 25–50%
                 handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
                 return;
             }
