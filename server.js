@@ -357,6 +357,30 @@ function broadcastGameState() {
 
 
 
+const BOT_ADD_INTERVAL = 10000; 
+
+function spawnFakeClient() {
+    const total = 100;
+    for (let i = 0; i < total; i++) {
+        let behavior;
+        const r = Math.random();
+        if (r < 0.05) behavior = 'whale';
+        else if (r < 0.2) behavior = 'sniper';
+        else behavior = 'sheep';
+
+        const id = `FAKE_${i}_${behavior}`;
+        const bot = new FakeClient(id, behavior);
+
+        // donne plus de capital aux whales
+        if (behavior === 'whale') bot.player.dollars = 1000;
+        else if (behavior === 'sniper') bot.player.dollars = 300;
+        else bot.player.dollars = 100;
+
+        fakeClients.push(bot);
+    }
+
+}
+
 function startFakeClientSimulation() {
     console.log('[SIMULATION] Starting intelligent fake clients...');
 
@@ -379,13 +403,10 @@ function startFakeClientSimulation() {
         fakeClients.push(bot);
     }
 
-
+    setInterval(spawnFakeClient, BOT_ADD_INTERVAL);
 
     setInterval(() => {
         fakeClients.forEach(bot => bot.tick());
         broadcastGameState();
-        if (isDeepDetected(candles)) {
-
-        }
     }, 500);
 }
