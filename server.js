@@ -85,7 +85,7 @@ class FakeClient {
         const p = this.player;
         const price = currentCandle.c;
 
-        const logger = this.id.includes("FAKE_0_");
+        const logger = false; //this.id.includes("FAKE_0_");
 
         if (logger) console.log(`[BOT] ${this.id} Tick | Tokens: ${p.tokens.toFixed(2)} | Dollars: ${p.dollars.toFixed(2)}`);
 
