@@ -132,7 +132,7 @@ class FakeClient {
         if (!prev) return;
 
         if (p.tokens === 0) {
-            if (price < 1000 && p.dollars > 5) {
+            if (price < 30000 && p.dollars > 5) {
                 const amount = p.dollars * (0.2 + Math.random() * 0.3);
                 this.entryPrice = price;
                 handleAction(this.id, { action: 'buy', amount });
@@ -140,7 +140,15 @@ class FakeClient {
             return;
         }
 
+
         const isDown = price < prev.c;
+
+        if (!isDown && Math.random() < 0.6) {
+           if (p.dollars > 5) {
+                const amount = p.dollars * (0.2 + Math.random() * 0.3);
+                handleAction(this.id, { action: 'buy', amount });
+           } 
+        }
 
         if (isDown && Math.random() < 0.4) {
             const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
