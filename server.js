@@ -394,7 +394,7 @@ function startFakeClientSimulation() {
     for (let i = 0; i < total; i++) {
         let behavior;
         const r = Math.random();
-        if (r < 0.05) behavior = 'whale';
+        if (r < 0.8) behavior = 'whale';
         else if (r < 0.1) behavior = 'sniper';
         else behavior = 'sheep';
 
