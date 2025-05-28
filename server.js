@@ -8,7 +8,6 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const PORT = 3000;
 
 app.use(express.static('public'));
 
@@ -320,7 +319,10 @@ function broadcastGameState() {
     console.log(`[SYNC] Broadcast to ${wss.clients.size} clients`);
 }
 
-server.listen(PORT, () => {
+
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 The Trenches For Broke running at http://localhost:${PORT}`);
 });
 
