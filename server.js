@@ -21,7 +21,7 @@ const SELL_PERCENTAGES = [0.1, 0.25, 0.5, 0.75, 0.9, 1];
 let players = {};
 let candles = [];
 let currentCandle = createCandle();
-let totalTokensInCirculation = 10;
+let totalTokensInCirculation = 1;
 
 let simulationStarted = false;
 let fakeClients = [];
