@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Démarrer serveur
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Serveur HTTP lancé sur le port ${PORT}`);
+    console.log(`Serveur HTTP lancé sur le port ${PORT}`);
 });
 
 const SELL_PERCENTAGES = [0.1, 0.25, 0.5, 0.75, 0.9, 1];
@@ -40,6 +40,19 @@ function isDeepDetected(candles, threshold = 0.2) {
 
     const variation = (maxHigh - minLow) / maxHigh;
     return variation >= threshold;
+}
+
+function isChartStagnating(candles, threshold = 0.03) {
+    if (candles.length < 5) return false;
+    const last5 = candles.slice(-5);
+    const highs = last5.map(c => c.h);
+    const lows = last5.map(c => c.l);
+
+    const max = Math.max(...highs);
+    const min = Math.min(...lows);
+    const variation = (max - min) / max;
+
+    return variation < threshold;
 }
 
 class FakeClient {
@@ -86,6 +99,12 @@ class FakeClient {
                 const amount = p.dollars * (0.5 + Math.random() * 0.5);
                 this.entryPrice = price;
                 handleAction(this.id, { action: 'buy', amount });
+                return;
+            }
+
+            if (isChartStagnating(candles) && price / this.entryPrice > 1.2 && p.tokens > 0.1) {
+                const percent = 0.1 + Math.random() * 0.2; // vendre 10–30%
+                handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
                 return;
             }
 
@@ -140,6 +159,11 @@ class FakeClient {
                 const amount = p.dollars * (0.5 + Math.random() * 0.5); // 50 à 100 % du cash
                 this.entryPrice = price;
                 handleAction(this.id, { action: 'buy', amount });
+                return;
+            }
+            if (isChartStagnating(candles) && price / this.entryPrice > 1.2 && p.tokens > 0.1) {
+                const percent = 0.1 + Math.random() * 0.2; // vendre 10–30%
+                handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
                 return;
             }
             if (price < prev.l * 0.5 && p.dollars > 10) {
