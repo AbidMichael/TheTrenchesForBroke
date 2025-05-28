@@ -183,7 +183,7 @@ setInterval(() => {
     broadcastGameState();
 }, 5000);
 
-function createCandle(open = 1000) {
+function createCandle(open = 100) {
     return { o: open, h: open, l: open, c: open, t: Date.now() };
 }
 
@@ -195,7 +195,7 @@ function createNewPlayer(name) {
     //console.log(`[PLAYER] Creating new player`);
     return {
         id:name,
-        dollars: 100,
+        dollars: 500,
         tokens: 0,
         averageBuy: 0,
         gains: 0,
