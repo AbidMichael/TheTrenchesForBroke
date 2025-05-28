@@ -12,7 +12,7 @@ const server = https.createServer({
 const wss = new WebSocket.Server({ server });
 
 
-const PORT = 3000;
+const PORT = 443;
 
 app.use(express.static('public'));
 
