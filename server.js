@@ -122,10 +122,10 @@ class FakeClient {
             handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
         }
         const profitRatio = price / this.entryPrice;
-        if (this.personality === 'rugger' && profitRatio >= 1.1) {
+        if (this.personality === 'rugger' && profitRatio >= 2) {
             const percent = 0.75 + Math.random() * 0.25; // rugger : gros cash out
             handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
-        } else if (profitRatio >= 2.0 || (profitRatio >= 1.5 && Math.random() < 0.5)) {
+        } else if (profitRatio >= 2.0 || (profitRatio >= 3 && Math.random() < 0.5)) {
             const percent = SELL_PERCENTAGES[Math.floor(Math.random() * SELL_PERCENTAGES.length)];
             handleAction(this.id, { action: 'sell', amount: p.tokens * percent });
         }
