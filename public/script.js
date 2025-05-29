@@ -14,6 +14,18 @@ const CANDLE_GAP = 8;
 const CHART_HEIGHT = canvas.height - CHART_PADDING * 2;
 
 
+function normalizeCandle(candle) {
+    // Ajoute des alias pour compatibilité : c = current_price, o = opening_price, h = higher_price, l = lower_price
+    if (!candle) return candle;
+    candle.c = candle.current_price;
+    candle.o = candle.opening_price;
+    candle.h = candle.higher_price;
+    candle.l = candle.lower_price;
+    return candle;
+}
+
+
+
 function getOrCreatePlayerId() {
     try {
         let id = localStorage.getItem('playerId');
@@ -38,7 +50,8 @@ ws.onmessage = (e) => {
     }
     if (data.type === 'update') {
         gameState = data.gameState;
-        drawCandles([...gameState.candles, gameState.currentCandle]);
+        const candlesToDraw = [...gameState.candles, gameState.currentCandle].map(normalizeCandle);
+        drawCandles(candlesToDraw);
         updateStats();
         updateLeaderboard();
         updateStatsEncadre(Object.values(gameState.players));
@@ -65,21 +78,23 @@ document.querySelectorAll('[data-sell]').forEach(btn => {
 
 function updateStats() {
     const player = gameState.players[playerId];
-    const lastCandle = gameState.currentCandle;
+    const lastCandle = gameState.currentCandle ? normalizeCandle(gameState.currentCandle) : null;
 
     let price = lastCandle ? lastCandle.c : 0;
     let variation = lastCandle ? ((lastCandle.c - lastCandle.o) / lastCandle.o) * 100 : 0;
 
+    // Utilise reserveToken comme base de tokens en circulation si besoin
     statsDiv.innerHTML = `
     Dollars: ${player.dollars.toFixed(2)} |
     Tokens: ${player.tokens.toFixed(4)} |
     Avg Buy: ${player.averageBuy.toFixed(2)} |
     Gains: ${player.gains.toFixed(2)} |
-    Prix actuel: ${price.toFixed(2)} |
+    Prix actuel: ${price.toFixed(5)} |
     Variation: ${(variation >= 0 ? "+" : "") + variation.toFixed(2)}% |
-    En circulation: ${gameState.totalTokensInCirculation.toFixed(2)} 
+    Tokens (reserve): ${gameState.reserveToken}
   `;
 }
+
 
 function updateStatsEncadre(allPlayers) {
     // Séparer bots et humains
@@ -152,7 +167,7 @@ function updateLeaderboard() {
     let html = '';
     const topPlayers = gameState.leaderboard.slice(0, 25);
     const me = gameState.players[playerId];
-    const myNetWorth = me.tokens * gameState.currentCandle.c + me.dollars;
+    const myNetWorth = me.tokens * gameState.currentCandle.current_price + me.dollars; // ici on utilise .current_price
 
     let playerRank = -1;
 
@@ -174,6 +189,7 @@ function updateLeaderboard() {
 
     document.getElementById('leaderboard').innerHTML = html;
 }
+
 
 
 function drawCandles(candles) {
